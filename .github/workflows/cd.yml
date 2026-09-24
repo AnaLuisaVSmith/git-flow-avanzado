@@ -1,0 +1,40 @@
+name: CD
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  actualizar-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Incrementar AppVersion
+        shell: bash
+        run: |
+          VERSION=$(grep -oP 'AppVersion-\K[0-9]+' README.md || echo 0)
+          NEW_VERSION=$((VERSION + 1))
+          echo "AppVersion-$NEW_VERSION - $(date '+%Y-%m-%d %H:%M:%S')" > README.md
+          echo "Nueva versión: AppVersion-$NEW_VERSION"
+
+  validar-produccion:
+    needs: actualizar-readme
+    runs-on: self-hosted
+    steps:
+      - name: Validar PROD_TOKEN
+        shell: powershell
+        run: |
+          if ("${{ secrets.PROD_TOKEN }}" -eq "$env:LOCAL_PROD_TOKEN") {
+            Write-Host "PROD_TOKEN correcto"
+          } else {
+            Write-Error "PROD_TOKEN incorrecto"
+            exit 1
+          }
